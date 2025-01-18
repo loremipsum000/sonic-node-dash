@@ -130,14 +130,14 @@ export default function Home() {
                     <div>
                       <div className="flex items-center gap-2">
                         <div className="h-3 w-3 rounded-full" style={{ backgroundColor: "hsl(24, 99%, 65%)" }} />
-                        <p className="text-sm font-medium text-muted-foreground">Validator Stake</p>
+                        <p className="text-sm font-medium text-muted-foreground">Delegator Stake</p>
                       </div>
                       <p className="text-base font-bold">{Math.floor(validatorStake).toLocaleString()} S</p>
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
-                        <div className="h-3 w-3 rounded-full" style={{ backgroundColor: "hsl(181, 52%, 61%)" }} />
-                        <p className="text-sm font-medium text-muted-foreground">Delegator Stake</p>
+                        <div className="h-3 w-3 rounded-full" style={{ backgroundColor: "#1969ff" }} />
+                        <p className="text-sm font-medium text-muted-foreground">Validator Stake</p>
                       </div>
                       <p className="text-base font-bold">{Math.floor(totalDelegated).toLocaleString()} S</p>
                     </div>
@@ -147,8 +147,8 @@ export default function Home() {
                   <PieChart width={150} height={150}>
                     <Pie
                       data={[
-                        { name: "Validator Stake", value: validatorStake },
-                        { name: "Delegator Stake", value: totalDelegated },
+                        { name: "Delegator Stake", value: validatorStake },
+                        { name: "Validator Stake", value: totalDelegated },
                       ]}
                       cx={75}
                       cy={75}
@@ -158,7 +158,7 @@ export default function Home() {
                       dataKey="value"
                     >
                       <Cell fill="hsl(24, 99%, 65%)" />
-                      <Cell fill="hsl(181, 52%, 61%)" />
+                      <Cell fill="#1969ff" />
                     </Pie>
                   </PieChart>
                 </div>
