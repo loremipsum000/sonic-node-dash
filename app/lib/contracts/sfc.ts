@@ -1,5 +1,71 @@
-function hexToDecimal(hex: string): number {
-  return parseInt(hex.replace('0x', ''), 16);
+function hexToBigInt(hex: string): bigint {
+  try {
+    if (!hex || typeof hex !== 'string') return BigInt(0);
+    const cleanHex = hex.toLowerCase().startsWith('0x') ? hex : `0x${hex}`;
+    return BigInt(cleanHex);
+  } catch (error) {
+    console.error('Error converting hex to BigInt:', { 
+      hex, 
+      error: error instanceof Error ? error.message : String(error)
+    });
+    return BigInt(0);
+  }
+}
+
+// Format downtime as a percentage
+function formatDowntime(downtimeHex: string, isOffline: boolean, isActive: boolean): string {
+  // Handle offline validators
+  if (isOffline && !isActive) {
+    return '100.00%';
+  }
+  
+  if (!downtimeHex || typeof downtimeHex !== 'string') {
+    return '0.00%';
+  }
+  
+  try {
+    // Clean and validate the hex input
+    const cleanHex = downtimeHex.toLowerCase().startsWith('0x') ? downtimeHex : `0x${downtimeHex}`;
+    if (!/^0x[0-9a-f]+$/i.test(cleanHex)) {
+      return '0.00%';
+    }
+    
+    // Convert to BigInt
+    const downtimeValue = hexToBigInt(cleanHex);
+    
+    // Handle zero values for active validators
+    if (downtimeValue === BigInt(0) && isActive && !isOffline) {
+      return '0.00%';
+    }
+    
+    // Calculate percentage (1e12 represents 100%)
+    const multiplied = downtimeValue * BigInt(100);
+    const divisor = BigInt(10) ** BigInt(12);
+    const scaledDowntime = multiplied / divisor;
+    
+    // Convert to number and handle special cases
+    let percentage = Number(scaledDowntime);
+    
+    // Handle offline but active validators
+    if (isOffline && isActive) {
+      percentage = Math.max(percentage, 100);
+    }
+    
+    // Handle invalid results
+    if (!Number.isFinite(percentage)) {
+      return '0.00%';
+    }
+    
+    // Cap at 100% and format
+    const cappedPercentage = Math.min(100, percentage);
+    return `${cappedPercentage.toFixed(2)}%`;
+  } catch (error) {
+    console.error('Error formatting downtime:', {
+      input: downtimeHex,
+      error: error instanceof Error ? error.message : String(error)
+    });
+    return '0.00%';
+  }
 }
 
 const GRAPHQL_ENDPOINT = '/api/graphql';
@@ -117,30 +183,35 @@ export class SFCContract {
 
   async getStakingInfo(): Promise<StakingInfo> {
     const data = await this.fetchGraphQL(GET_STAKING_INFO);
+    
     return {
       totalStake: BigInt(data.stakers.reduce((acc: bigint, v: any) => acc + BigInt(v.totalStake || 0), BigInt(0))),
       totalDelegated: BigInt(data.stakers.reduce((acc: bigint, v: any) => acc + BigInt(v.delegatedMe || 0), BigInt(0))),
-      validators: data.stakers.map((v: any) => ({
-        id: v.id,
-        address: v.stakerAddress,
-        totalStake: v.totalStake || '0',
-        stake: v.stake || '0',
-        delegatedMe: v.delegatedMe || '0',
-        isActive: v.isActive,
-        isCheater: v.isCheater,
-        isOffline: v.isOffline,
-        createdTime: v.createdTime,
-        downtime: v.downtime,
-        name: v.stakerInfo?.name,
-        logoUrl: v.stakerInfo?.logoUrl
-      }))
+      validators: data.stakers.map((v: any) => {
+        const downtimeValue = v.downtime || '0x0';
+        
+        return {
+          id: v.id,
+          address: v.stakerAddress,
+          totalStake: v.totalStake || '0',
+          stake: v.stake || '0',
+          delegatedMe: v.delegatedMe || '0',
+          isActive: v.isActive,
+          isCheater: v.isCheater,
+          isOffline: v.isOffline,
+          createdTime: v.createdTime,
+          downtime: formatDowntime(downtimeValue, v.isOffline, v.isActive),
+          name: v.stakerInfo?.name,
+          logoUrl: v.stakerInfo?.logoUrl
+        };
+      })
     };
   }
 
   async getCurrentEpoch(): Promise<number> {
     try {
       const data = await this.fetchGraphQL(GET_CURRENT_EPOCH);
-      return hexToDecimal(data.currentEpoch);
+      return Number(hexToBigInt(data.currentEpoch));
     } catch (error) {
       console.error('Error in getCurrentEpoch:', error);
       throw error;
